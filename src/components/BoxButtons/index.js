@@ -27,7 +27,6 @@ export default function BoxButtons({passPass, scanned, tokenT}){
           }
           await AsyncStorage.setItem('dataLogin', JSON.stringify(dataLogin))
             .then(() => {
-              console.log(passPass);
               navigation.navigate('Main');
             }).catch((error) => {
               console.log(error);
@@ -38,7 +37,6 @@ export default function BoxButtons({passPass, scanned, tokenT}){
           console.log('Senha incorreta.');
         }
       }
-      console.log(returnPass.length);
     })();
 
   }, [returnPass]);

@@ -6,10 +6,13 @@ import { Animated,
          StatusBar, 
          Dimensions,
          ScrollView,
-         ImageBackground } from 'react-native';
+         ImageBackground,
+         AsyncStorage } from 'react-native';
 
 import { Camera } from 'expo-camera';
 import Constants from 'expo-constants';
+import axios from 'axios';
+import ImgToBase64 from 'react-native-image-base64';
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +34,7 @@ export default function CameraScreen({ route, navigation }) {
   const [hasPermission, setHasPermission] = useState(null);
   const [dataPicture, setDataPicture] = useState([]);
   const [disabledTaken, setDisabledTaken] = useState(false);
+  const [disabledAlbum, setDisabledAlbum] = useState(false);
   const [saveIndexDelete, setSaveIndexDelete] = useState(null);
   const [disabledSendImages, setDisabledSendImages] = useState(false);
 
@@ -55,25 +59,30 @@ export default function CameraScreen({ route, navigation }) {
 
   const takePictureFunc = async () => {
     setDisabledTaken(true);
+    setDisabledAlbum(true);
     if(camRef){
-      const responseTakePictureAsync = await camRef.current.takePictureAsync();
+      const responseTakePictureAsync = await camRef.current.takePictureAsync({base64: true});
       if(responseTakePictureAsync !== null){
 
-        setDisabledTaken(false);
         const dateNow = new Date();
         const datteNow = dateNow.getTime();
 
         const newObject = {
           _id: parseInt(datteNow),
-          uri: responseTakePictureAsync.uri
+          uri: responseTakePictureAsync.base64
         };
 
         const rowOldData = dataPicture;
         rowOldData.push(newObject);
         setDataPicture([...rowOldData]);
 
+        setDisabledTaken(false);
+        setDisabledAlbum(false);
+
       }else{
         console.log(`Erro ao capturar Imagem. Tente novamente.`);
+        setDisabledTaken(false);
+        setDisabledAlbum(false);
       }
     }
   }
@@ -133,6 +142,53 @@ export default function CameraScreen({ route, navigation }) {
     }).start();
   }
 
+  const _sendImagesToServer = async () => {
+
+    const { userLogin } = JSON.parse(await AsyncStorage.getItem('dataLogin'));
+
+    let arrayOfUris = [];
+
+    const dateNow = new Date();
+    const datteNow = dateNow.getTime();
+
+    dataPicture.forEach( async (file, index) => {
+      arrayOfUris.push({
+        _id: index,
+        uri: file.uri,
+        time: datteNow,
+      });
+    });
+
+    // Building data for Api
+    const formData = new FormData();
+
+    // Auth
+    formData.append('model', 'imageModel');
+    formData.append('action', 'insert');
+
+    // Data Form
+    formData.append('whoIsSending', userLogin);
+    formData.append('poRelated', route.params.po_number);
+    formData.append('uris', JSON.stringify(arrayOfUris));
+    formData.append('uriLength', arrayOfUris.length);
+
+    // console.log(formData);
+
+    await axios({
+      method: 'POST',
+      url: 'http://192.168.1.173:8888/apis/unsplash/controllers/imageModel/insert/index.php',
+      data: formData,
+      headers: { 
+        'Content-Type' : 'multipart/form-data'
+      }
+    }).then((response) => {
+      console.log(response.data);
+    }).catch((error) => {
+      console.log('Erro ao acessar o Servidor');
+    })
+
+  }
+
   if (hasPermission === null) {
     return <View />;
   }
@@ -165,7 +221,7 @@ export default function CameraScreen({ route, navigation }) {
       </Camera>
 
       <View style={[styles.boxImagesTaked]}>
-        <TouchableOpacity onPress={showListOfImages}>
+        <TouchableOpacity disabled={disabledAlbum} onPress={showListOfImages}>
           <Ionicons name="ios-albums" size={34} color="white" />
         </TouchableOpacity>
       </View>
@@ -191,7 +247,7 @@ export default function CameraScreen({ route, navigation }) {
               <View key={index} style={styles.boxAroundIB}>
                 <ImageBackground 
                   style={[styles.boxUrlImage]} 
-                  source={{uri: item.uri}} 
+                  source={{uri: `data:image/gif;base64,${item.uri}`}} 
                 >
                   <TouchableOpacity onPress={() => _showBoxConfirmDeletePhoto(index)} style={styles.boxActionDeleteImage}>
                     <FontAwesome5 name="trash" size={22} color="white" />
@@ -204,7 +260,7 @@ export default function CameraScreen({ route, navigation }) {
         </ScrollView>
 
         <View style={styles.boxButtonEnviar}>
-          <TouchableOpacity disabled={disabledSendImages} style={styles.buttonEnviar}>
+          <TouchableOpacity onPress={_sendImagesToServer} disabled={disabledSendImages} style={styles.buttonEnviar}>
             <Text style={styles.textButtonEnviar}>
               Enviar para PO {route.params.po_number}
             </Text>

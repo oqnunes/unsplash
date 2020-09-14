@@ -85,6 +85,7 @@ export default function Login(){
       }else{
         setDisplayLottie('none');
         setErrorMsg(response.data.erro_msg);
+        console.log(response.data);
       }
       
     }).catch((error) => {

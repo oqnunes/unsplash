@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View, TouchableOpacity, AsyncStorage } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import * as Network from 'expo-network';
 
 import CustomStatusBar from './../../components/StatusBarr';
 
