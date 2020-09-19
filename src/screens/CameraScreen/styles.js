@@ -128,7 +128,7 @@ export default StyleSheet.create({
   },
   buttonEnviar: {
     width: '100%',
-    paddingVertical: 20,
+    height: 70,
     backgroundColor: 'black',
     alignItems: 'center',
     justifyContent: 'center',
@@ -192,4 +192,51 @@ export default StyleSheet.create({
     fontFamily: 'nunito-bold',
     color: 'white'
   },
+  lottieSending: {
+    width: 120,
+    height: 120,
+  },
+  boxNotifyErrorSend: {
+    width: '100%',
+    height: 200,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    position: 'absolute',
+    backgroundColor: '#F1F1F1',
+    zIndex: 9999,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 60,
+    shadowRadius: 100.84,
+    
+    elevation: 9,
+  },
+  textBoxNotifyErrorSend: {
+    width: '100%',
+    fontSize: 28,
+    fontFamily: 'nunito-black'
+  },
+  textBoxNotifyErrorSend2: {
+    width: '100%',
+    fontSize: 20,
+    fontFamily: 'nunito-semi-bold'
+  },
+  buttonConfirmError: {
+    width: '100%',
+    borderWidth: 2,
+    padding: 16,
+    marginTop: 8,
+    alignItems: 'center'
+  },
+  textButtonConfirmError: {
+    fontSize: 20,
+    fontFamily: 'nunito-black'
+  }
 });

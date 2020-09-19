@@ -8,6 +8,7 @@ import Login from './screens/Login';
 import Main from './screens/Main';
 import VerifyPO from './screens/VerifyPO';
 import CameraScreen from './screens/CameraScreen';
+import SuccessSendImage from './screens/SuccessSendImage';
 
 const AppStack = createStackNavigator();
 
@@ -42,6 +43,11 @@ export default function Routes(){
           <AppStack.Screen
             name="CameraScreen"
             component={CameraScreen}
+            options={{gestureEnabled: false }}
+          />
+          <AppStack.Screen
+            name="SuccessSendImage"
+            component={SuccessSendImage}
             options={{gestureEnabled: false }}
           />
           

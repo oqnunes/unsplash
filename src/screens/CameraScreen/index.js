@@ -12,7 +12,8 @@ import { Animated,
 import { Camera } from 'expo-camera';
 import Constants from 'expo-constants';
 import axios from 'axios';
-import ImgToBase64 from 'react-native-image-base64';
+
+import LottieView from 'lottie-react-native';
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,32 +31,36 @@ export default function CameraScreen({ route, navigation }) {
   const topNDI = useRef(new Animated.Value(2000)).current;
   const topListOfImages = useRef(new Animated.Value(2000)).current;
   const usefullNDI = windowHeight - 160;
+  const usefullNES = windowHeight - 200;
+  const animation = useRef(null);
+  const topSendError = useRef(new Animated.Value(2000)).current;
 
   const [hasPermission, setHasPermission] = useState(null);
   const [dataPicture, setDataPicture] = useState([]);
   const [disabledTaken, setDisabledTaken] = useState(false);
   const [disabledAlbum, setDisabledAlbum] = useState(false);
+  const [displayLottie, setDisplayLottie] = useState('none');
+  const [displayTextLt, setDisplayTextLt] = useState('flex');
   const [saveIndexDelete, setSaveIndexDelete] = useState(null);
-  const [disabledSendImages, setDisabledSendImages] = useState(false);
+  const [disabledSendImages, setDisabledSendImages] = useState(true);
+
+  const [textErrorSend, setTextErrorSend] = useState('Não foi possível completar a ação.');
+  const [codgErrorSend, setCodgErrorSend] = useState(0);
 
   useEffect(() => {
     (async () => {
 
-      if(topListOfImages === 0){
+      if(topListOfImages == 2000){
         StatusBar.setHidden(false);
       }else{
         StatusBar.setHidden(true);
-      }
-
-      if(disabledSendImages >= 1){
-        setDisabledSendImages(false);
       }
 
       const { status } = await Camera.requestPermissionsAsync();
       setHasPermission(status === 'granted');
 
     })();
-  }, []);
+  }, [dataPicture, topListOfImages]);
 
   const takePictureFunc = async () => {
     setDisabledTaken(true);
@@ -127,6 +132,14 @@ export default function CameraScreen({ route, navigation }) {
     }).start();
   }
 
+  const _hideBoxErrorSendImages = () => {
+    Animated.timing(topSendError, {
+      toValue: 2000,
+      duration: 400,
+      useNativeDriver: false
+    }).start();
+  }
+
   const _onClickDeletePhoto = () => {
     if(dataPicture.length === 1){
       setDisabledSendImages(true);
@@ -144,48 +157,84 @@ export default function CameraScreen({ route, navigation }) {
 
   const _sendImagesToServer = async () => {
 
-    const { userLogin } = JSON.parse(await AsyncStorage.getItem('dataLogin'));
+    if(dataPicture.length == 0){
 
-    let arrayOfUris = [];
 
-    const dateNow = new Date();
-    const datteNow = dateNow.getTime();
+    }else{
 
-    dataPicture.forEach( async (file, index) => {
-      arrayOfUris.push({
-        _id: index,
-        uri: file.uri,
-        time: datteNow,
+      setDisplayLottie('flex');
+      setDisplayTextLt('none');
+      setDisabledSendImages(true);
+      
+      animation.current.play();
+  
+      const { userLogin } = JSON.parse(await AsyncStorage.getItem('dataLogin'));
+  
+      let arrayOfUris = [];
+  
+      const dateNow = new Date();
+      const datteNow = dateNow.getTime();
+  
+      dataPicture.forEach( async (data, index) => {
+        arrayOfUris.push({
+          _id: index,
+          uri: data.uri,
+          time: datteNow,
+        });
       });
-    });
+  
+      // Building data for Api
+      const formData = new FormData();
+  
+      // Auth
+      formData.append('model', 'imageModel');
+      formData.append('action', 'insert');
+  
+      // Data Form
+      formData.append('whoIsSending', userLogin);
+      formData.append('poRelated', route.params.po_number);
+      formData.append('uris', JSON.stringify(arrayOfUris));
+      formData.append('uriLength', arrayOfUris.length);
+  
+      await axios({
+        method: 'POST',
+        url: 'http://192.168.1.173:8888/apis/unsplash/configs/upload/index.php',
+        data: formData,
+        headers: { 
+          'Content-Type' : 'multipart/form-data'
+        }
+      }).then((response) => {
 
-    // Building data for Api
-    const formData = new FormData();
+        if(response.data.success === true){
+          console.log(response.data);
 
-    // Auth
-    formData.append('model', 'imageModel');
-    formData.append('action', 'insert');
+          setTimeout(() => {
+            navigation.navigate('SuccessSendImage');
+          }, 1000);
 
-    // Data Form
-    formData.append('whoIsSending', userLogin);
-    formData.append('poRelated', route.params.po_number);
-    formData.append('uris', JSON.stringify(arrayOfUris));
-    formData.append('uriLength', arrayOfUris.length);
+        }else{
 
-    // console.log(formData);
+          Animated.timing(topSendError, {
+            toValue: usefullNES,
+            duration: 400,
+            useNativeDriver: false
+          }).start();
 
-    await axios({
-      method: 'POST',
-      url: 'http://192.168.1.173:8888/apis/unsplash/controllers/imageModel/insert/index.php',
-      data: formData,
-      headers: { 
-        'Content-Type' : 'multipart/form-data'
-      }
-    }).then((response) => {
-      console.log(response.data);
-    }).catch((error) => {
-      console.log('Erro ao acessar o Servidor');
-    })
+          setDisplayLottie('none');
+          setDisplayTextLt('flex');
+          setDisabledSendImages(false);
+
+          setTextErrorSend(response.data.erro_msg);
+          setCodgErrorSend(response.data.erro_code);
+
+          console.log(response.data);
+        }
+
+      }).catch((error) => {
+        console.log('Erro ao acessar o Servidor');
+      })
+
+    }
 
   }
 
@@ -260,30 +309,55 @@ export default function CameraScreen({ route, navigation }) {
         </ScrollView>
 
         <View style={styles.boxButtonEnviar}>
-          <TouchableOpacity onPress={_sendImagesToServer} disabled={disabledSendImages} style={styles.buttonEnviar}>
-            <Text style={styles.textButtonEnviar}>
+          <TouchableOpacity disabled={disabledSendImages} onPress={_sendImagesToServer} style={styles.buttonEnviar}>
+            <Text style={[styles.textButtonEnviar, {
+              display: displayTextLt
+            }]}>
               Enviar para PO {route.params.po_number}
             </Text>
+            <LottieView
+              ref={animation}
+              style={[styles.lottieSending, {
+                display: displayLottie
+              }]}
+              source={require('./../../../assets/images/sending.json')}
+            />
           </TouchableOpacity>
         </View>
         
         <Animated.View style={[styles.boxNotificationDeleteImage, { top: topNDI }]}>
-        <Text style={styles.textTitleNDI}>
-          Deseja deletar essa imagem?
+          <Text style={styles.textTitleNDI}>
+            Deseja deletar essa imagem?
+          </Text>
+          <View style={styles.subBoxNDI}>
+            <TouchableOpacity onPress={_hideBoxConfirmDeletePhoto} style={styles.boxClickNegative}>
+              <Text style={styles.textBoxClickNegative}>
+                Não
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={_onClickDeletePhoto} style={styles.boxClickPositive}>
+              <Text style={styles.textBoxClickPositive}>
+                Sim
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.boxNotifyErrorSend, {
+          top: topSendError
+        }]}>
+        <Text style={[styles.textBoxNotifyErrorSend]}>
+            Código do Erro: {codgErrorSend}
         </Text>
-        <View style={styles.subBoxNDI}>
-          <TouchableOpacity onPress={_hideBoxConfirmDeletePhoto} style={styles.boxClickNegative}>
-            <Text style={styles.textBoxClickNegative}>
-              Não
+          <Text style={[styles.textBoxNotifyErrorSend2]} numberOfLines={2}>
+            {textErrorSend}
+          </Text>
+          <TouchableOpacity onPress={_hideBoxErrorSendImages} style={styles.buttonConfirmError}>
+            <Text style={styles.textButtonConfirmError}>
+              Entendido
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={_onClickDeletePhoto} style={styles.boxClickPositive}>
-            <Text style={styles.textBoxClickPositive}>
-              Sim
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+        </Animated.View>
 
       </Animated.View>
 
