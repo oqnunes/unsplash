@@ -44,13 +44,15 @@ export default function CameraScreen({ route, navigation }) {
   const [saveIndexDelete, setSaveIndexDelete] = useState(null);
   const [disabledSendImages, setDisabledSendImages] = useState(true);
 
+  const [dataPictureBase64, setDataPictureBase64] = useState([]);
+
   const [textErrorSend, setTextErrorSend] = useState('Não foi possível completar a ação.');
   const [codgErrorSend, setCodgErrorSend] = useState(0);
 
   useEffect(() => {
     (async () => {
 
-      if(topListOfImages == 2000){
+      if(topListOfImages != 2000){
         StatusBar.setHidden(false);
       }else{
         StatusBar.setHidden(true);
@@ -66,7 +68,8 @@ export default function CameraScreen({ route, navigation }) {
     setDisabledTaken(true);
     setDisabledAlbum(true);
     if(camRef){
-      const responseTakePictureAsync = await camRef.current.takePictureAsync({base64: true});
+      const responseTakePictureAsync = await camRef.current.takePictureAsync();
+      const responseTakePictureAsync64 = await camRef.current.takePictureAsync({base64:true});
       if(responseTakePictureAsync !== null){
 
         const dateNow = new Date();
@@ -74,8 +77,16 @@ export default function CameraScreen({ route, navigation }) {
 
         const newObject = {
           _id: parseInt(datteNow),
-          uri: responseTakePictureAsync.base64
+          uri: responseTakePictureAsync.uri
         };
+        const newOObject = {
+          _id: parseInt(datteNow),
+          uri: responseTakePictureAsync64.base64
+        }
+
+        const rrowOldData = dataPictureBase64;
+        rrowOldData.push(newOObject);
+        setDataPictureBase64([...rrowOldData]);
 
         const rowOldData = dataPicture;
         rowOldData.push(newObject);
@@ -170,22 +181,22 @@ export default function CameraScreen({ route, navigation }) {
   
       const { userLogin } = JSON.parse(await AsyncStorage.getItem('dataLogin'));
   
-      let arrayOfUris = [];
-  
       const dateNow = new Date();
       const datteNow = dateNow.getTime();
-  
-      dataPicture.forEach( async (data, index) => {
+
+      let formData = new FormData();
+
+      let arrayOfUris = [];
+
+      dataPictureBase64.forEach((data, index) => {
         arrayOfUris.push({
-          _id: index,
-          uri: data.uri,
-          time: datteNow,
-        });
+          newId: index,
+          name: `${index}-${route.params.po_number}-${datteNow}.jpg`,
+          type: 'image/jpeg',
+          uril: data.uri
+        })
       });
-  
-      // Building data for Api
-      const formData = new FormData();
-  
+
       // Auth
       formData.append('model', 'imageModel');
       formData.append('action', 'insert');
@@ -193,9 +204,8 @@ export default function CameraScreen({ route, navigation }) {
       // Data Form
       formData.append('whoIsSending', userLogin);
       formData.append('poRelated', route.params.po_number);
-      formData.append('uris', JSON.stringify(arrayOfUris));
-      formData.append('uriLength', arrayOfUris.length);
-  
+      formData.append('uris[]', JSON.stringify(arrayOfUris));
+
       await axios({
         method: 'POST',
         url: 'http://192.168.1.173:8888/apis/unsplash/configs/upload/index.php',
@@ -204,34 +214,9 @@ export default function CameraScreen({ route, navigation }) {
           'Content-Type' : 'multipart/form-data'
         }
       }).then((response) => {
-
-        if(response.data.success === true){
-          console.log(response.data);
-
-          setTimeout(() => {
-            navigation.navigate('SuccessSendImage');
-          }, 1000);
-
-        }else{
-
-          Animated.timing(topSendError, {
-            toValue: usefullNES,
-            duration: 400,
-            useNativeDriver: false
-          }).start();
-
-          setDisplayLottie('none');
-          setDisplayTextLt('flex');
-          setDisabledSendImages(false);
-
-          setTextErrorSend(response.data.erro_msg);
-          setCodgErrorSend(response.data.erro_code);
-
-          console.log(response.data);
-        }
-
+        console.log(response.data);
       }).catch((error) => {
-        console.log('Erro ao acessar o Servidor');
+        console.log(error);
       })
 
     }
@@ -291,7 +276,7 @@ export default function CameraScreen({ route, navigation }) {
 
         <ScrollView style={styles.boxScrollView}>
           {
-            dataPicture.map((item, index) => {
+            dataPictureBase64.map((item, index) => {
               return(
               <View key={index} style={styles.boxAroundIB}>
                 <ImageBackground 
